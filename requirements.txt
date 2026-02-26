@@ -1,0 +1,7 @@
+requests
+beautifulsoup4
+pyyaml
+pytest
+python-dotenv
+playwright
+playwright-stealth
