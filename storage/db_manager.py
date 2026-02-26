@@ -74,6 +74,7 @@ class DatabaseManager:
                     product_name,
                     store,
                     COALESCE(unit_price, price) as price,
+                    standard_unit,
                     DATE(timestamp) as date
                 FROM price_history
             """
@@ -81,21 +82,22 @@ class DatabaseManager:
             if days:
                 query += f" WHERE timestamp >= date('now', '-{days} days') "
                 
-            query += " ORDER BY product_id, date DESC"
+            query += " ORDER BY product_id, timestamp DESC"
                 
             cursor = conn.execute(query)
             
             rows = cursor.fetchall()
             
-            # Format: { "nf-chicken": { "id": "...", "name": "...", "store": "...", "history": { "2026-02-20": 4.99 } } }
+            # Format: { "nf-chicken": { "id": "...", "name": "...", "store": "...", "unit": "kg", "history": { "2026-02-20": 4.99 } } }
             results = {}
             for row in rows:
-                p_id, name, store, price, date_str = row
+                p_id, name, store, price, unit, date_str = row
                 if p_id not in results:
                     results[p_id] = {
                         "id": p_id,
                         "name": name,
                         "store": store,
+                        "unit": unit or "each",
                         "history": {}
                     }
                 # Keep the latest price for that day if there are multiple entries

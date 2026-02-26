@@ -743,7 +743,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         trendHTML = '';
                     }
 
-                    td.innerHTML = `$${price.toFixed(2)}${trendHTML}`;
+                    const unitSuffix = item.unit && item.unit !== 'each' ? `/${item.unit}` : '';
+                    td.innerHTML = `$${price.toFixed(2)}${unitSuffix}${trendHTML}`;
                     previousPrice = price; // Update previous valid price
                 } else {
                     td.className = 'price-cell empty';
