@@ -73,7 +73,7 @@ class DatabaseManager:
                     product_id,
                     product_name,
                     store,
-                    price,
+                    COALESCE(unit_price, price) as price,
                     DATE(timestamp) as date
                 FROM price_history
             """
