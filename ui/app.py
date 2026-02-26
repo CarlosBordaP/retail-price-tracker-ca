@@ -19,7 +19,9 @@ STATIC_DIR = os.path.join(BASE_DIR, "ui", "static")
 if BASE_DIR not in sys.path:
     sys.path.append(BASE_DIR)
 from storage.db_manager import DatabaseManager
+from storage.csv_manager import CSVManager
 db = DatabaseManager()
+csv_manager = CSVManager()
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -39,6 +41,21 @@ class Product(BaseModel):
 class ProductUpdate(BaseModel):
     name: str | None = None
     store: str | None = None
+    url: str | None = None
+    active: bool | None = None
+    pack_size: float | None = None
+
+class PersistRequest(BaseModel):
+    product_id: str
+    store: str
+    product_name: str
+    price: float
+    currency: str = "$"
+    stock: bool = True
+    unit: str = "each"
+    quantity: float = 1.0
+    unit_price: float | None = None
+    standard_unit: str | None = None
     url: str | None = None
     pack_size: float | None = None
 
@@ -231,6 +248,22 @@ async def get_scrape_status():
             return json.load(f)
     except Exception:
         return {"status": "error", "message": "Could not read status file"}
+
+@app.post("/api/history/persist")
+async def persist_history(data: PersistRequest):
+    try:
+        payload = data.dict()
+        # Ensure unit_price and standard_unit are set if missing
+        if payload.get("unit_price") is None:
+            payload["unit_price"] = payload["price"]
+        if payload.get("standard_unit") is None:
+            payload["standard_unit"] = payload["unit"]
+            
+        db.save_price(payload)
+        csv_manager.append_price(payload)
+        return {"status": "success", "message": "Price persisted to history"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

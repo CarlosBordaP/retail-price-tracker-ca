@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const productModal = document.getElementById('productModal');
     const deleteModal = document.getElementById('deleteModal');
     const testModal = document.getElementById('testModal');
+    const btnPersistTestResult = document.getElementById('btnPersistTestResult');
 
     // Views
     const productsView = document.getElementById('productsView');
@@ -47,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let products = [];
     let settings = { enabled_stores: [] };
     let currentStoreFilter = 'all';
+    let lastTestResult = null;
 
     // Settings elements
     const storeTogglesContainer = document.getElementById('storeTogglesContainer');
@@ -516,6 +518,8 @@ document.addEventListener('DOMContentLoaded', () => {
         deleteProduct(deleteProductId.value);
     });
 
+    btnPersistTestResult.addEventListener('click', persistTestResult);
+
     // --- Global Handlers (For inline HTML event calls) ---
     window.editProduct = (id) => {
         const p = products.find(prod => prod.id === id);
@@ -550,6 +554,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         resultPre.style.display = 'none';
         loading.style.display = 'block';
+        btnPersistTestResult.style.display = 'none';
+        lastTestResult = null;
         openModal(testModal);
 
         try {
@@ -558,9 +564,15 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const data = await res.json();
 
+            lastTestResult = data;
             resultPre.textContent = JSON.stringify(data, null, 2);
             resultPre.style.display = 'block';
             loading.style.display = 'none';
+
+            // Correct mapping: data.status === 'success' and data.data.extracted_price exists
+            if (data && data.status === 'success' && data.data && data.data.extracted_price !== undefined) {
+                btnPersistTestResult.style.display = 'inline-flex';
+            }
         } catch (error) {
             resultPre.textContent = JSON.stringify({ error: error.message }, null, 2);
             resultPre.style.display = 'block';
@@ -568,6 +580,47 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('Test execution failed', 'error');
         }
     };
+
+    async function persistTestResult() {
+        if (!lastTestResult || !lastTestResult.data) return;
+
+        const payload = lastTestResult.data;
+        btnPersistTestResult.disabled = true;
+        try {
+            const res = await fetch('/api/history/persist', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    product_id: payload.product_id,
+                    store: payload.store,
+                    product_name: payload.product_name,
+                    price: payload.extracted_price,
+                    currency: payload.currency || "$",
+                    stock: payload.stock !== false,
+                    unit: payload.unit || "each",
+                    quantity: payload.quantity || 1.0,
+                    unit_price: payload.unit_price,
+                    standard_unit: payload.standard_unit,
+                    url: payload.url
+                })
+            });
+
+            if (!res.ok) throw new Error('Failed to persist result');
+
+            showToast('Result loaded to history');
+            closeModal(testModal);
+
+            // Refresh history if visible
+            if (historyView.style.display === 'block') {
+                const activeType = document.querySelector('#navHistorySubmenu .submenu-item.active').getAttribute('data-history-type');
+                fetchHistory(activeType);
+            }
+        } catch (error) {
+            showToast(error.message, 'error');
+        } finally {
+            btnPersistTestResult.disabled = false;
+        }
+    }
 
     // --- Toast Notifications ---
     function showToast(message, type = 'success') {
