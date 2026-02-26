@@ -22,7 +22,7 @@
         "name": "Avocado Bag",
         "store": "nofrills",
         "url": "https://www.nofrills.ca/en/avocado-bag/p/21644936001_EA",
-        "pack_size": 5
+        "pack_size": 5.0
     },
     {
         "id": "nf-mozzarella",
@@ -70,7 +70,8 @@
         "id": "nf-rice",
         "name": "Premium Long Grain Rice",
         "store": "nofrills",
-        "url": "https://www.nofrills.ca/en/premium-long-grain-rice/p/20074783001_EA"
+        "url": "https://www.nofrills.ca/en/premium-long-grain-rice/p/20074783001_EA",
+        "active": false
     },
     {
         "id": "nf-limes",
@@ -136,19 +137,22 @@
         "id": "nf-shrimp",
         "name": "Pacific White Shrimp Cooked Peeled",
         "store": "nofrills",
-        "url": "https://www.nofrills.ca/en/pacific-white-shrimp-cooked-peeled/p/20791381_EA"
+        "url": "https://www.nofrills.ca/en/pacific-white-shrimp-cooked-peeled/p/20791381_EA",
+        "active": false
     },
     {
         "id": "nf-sirloin-roast",
         "name": "Tip Roast Sirloin",
         "store": "nofrills",
-        "url": "https://www.nofrills.ca/en/tip-roast-sirloin/p/20747774_KG"
+        "url": "https://www.nofrills.ca/en/tip-roast-sirloin/p/20747774_KG",
+        "active": false
     },
     {
         "id": "nf-roma-tomatoes",
         "name": "Roma Tomatoes",
         "store": "nofrills",
-        "url": "https://www.nofrills.ca/en/roma-tomatoes/p/20143381001_KG"
+        "url": "https://www.nofrills.ca/en/roma-tomatoes/p/20143381001_KG",
+        "active": false
     },
     {
         "id": "nf-canola-oil",
@@ -238,7 +242,8 @@
         "id": "fb-rice",
         "name": "Jasmin Rice",
         "store": "foodbasics",
-        "url": "https://www.foodbasics.ca/aisles/pantry/pasta-rice-beans/rice/jasmin-rice/p/059749997706"
+        "url": "https://www.foodbasics.ca/aisles/pantry/pasta-rice-beans/rice/jasmin-rice/p/059749997706",
+        "active": false
     },
     {
         "id": "fb-limes",
@@ -304,19 +309,22 @@
         "id": "fb-shrimp",
         "name": "Frozen Cooked Pacific White Shrimp with Tail",
         "store": "foodbasics",
-        "url": "https://www.foodbasics.ca/aisles/fish-seafood/frozen-fish-seafood/packages-bulk/frozen-cooked-pacific-white-shrimp-with-tail/p/059749950374"
+        "url": "https://www.foodbasics.ca/aisles/fish-seafood/frozen-fish-seafood/packages-bulk/frozen-cooked-pacific-white-shrimp-with-tail/p/059749950374",
+        "active": false
     },
     {
         "id": "fb-sirloin-steak",
         "name": "Sirloin Tip Steak",
         "store": "foodbasics",
-        "url": "https://www.foodbasics.ca/aisles/meat-poultry/beef-veal/steak-cuts/sirloin-tip-steak/p/201005"
+        "url": "https://www.foodbasics.ca/aisles/meat-poultry/beef-veal/steak-cuts/sirloin-tip-steak/p/201005",
+        "active": false
     },
     {
         "id": "fb-italian-tomato",
         "name": "Italian Tomato",
         "store": "foodbasics",
-        "url": "https://www.foodbasics.ca/aisles/fruits-vegetables/vegetables/tomatoes-cucumber/italian-tomato/p/4087"
+        "url": "https://www.foodbasics.ca/aisles/fruits-vegetables/vegetables/tomatoes-cucumber/italian-tomato/p/4087",
+        "active": false
     },
     {
         "id": "fb-canola-oil",
@@ -346,7 +354,8 @@
         "id": "me-pork-belly",
         "name": "Sliced Pork Belly",
         "store": "metro",
-        "url": "https://www.metro.ca/en/online-grocery/aisles/meat-poultry/pork/fondue-cubes-strips/sliced-pork-belly/p/203301"
+        "url": "https://www.metro.ca/en/online-grocery/aisles/meat-poultry/pork/fondue-cubes-strips/sliced-pork-belly/p/203301",
+        "active": true
     },
     {
         "id": "me-avocado",
@@ -406,7 +415,8 @@
         "id": "me-rice",
         "name": "Jasmin Rice",
         "store": "metro",
-        "url": "https://www.metro.ca/en/online-grocery/aisles/pantry/pasta-rice-beans/rice/jasmin-rice/p/059749997706"
+        "url": "https://www.metro.ca/en/online-grocery/aisles/pantry/pasta-rice-beans/rice/jasmin-rice/p/059749997706",
+        "active": false
     },
     {
         "id": "me-limes",
@@ -478,19 +488,22 @@
         "id": "me-shrimp",
         "name": "Frozen Cooked White Shrimp",
         "store": "metro",
-        "url": "https://www.metro.ca/en/online-grocery/aisles/frozen/fish-seafood/shrimp-seafood/frozen-cooked-white-shrimp/p/059749995672"
+        "url": "https://www.metro.ca/en/online-grocery/aisles/frozen/fish-seafood/shrimp-seafood/frozen-cooked-white-shrimp/p/059749995672",
+        "active": false
     },
     {
         "id": "me-sirloin-steak",
         "name": "Top Sirloin Steak",
         "store": "metro",
-        "url": "https://www.metro.ca/en/online-grocery/aisles/meat-poultry/beef-veal/steak-cuts/top-sirloin-steak/p/222054"
+        "url": "https://www.metro.ca/en/online-grocery/aisles/meat-poultry/beef-veal/steak-cuts/top-sirloin-steak/p/222054",
+        "active": false
     },
     {
         "id": "me-italian-tomato",
         "name": "Italian Tomato",
         "store": "metro",
-        "url": "https://www.metro.ca/en/online-grocery/aisles/fruits-vegetables/vegetables/tomatoes-cucumber/italian-tomato/p/4087"
+        "url": "https://www.metro.ca/en/online-grocery/aisles/fruits-vegetables/vegetables/tomatoes-cucumber/italian-tomato/p/4087",
+        "active": false
     },
     {
         "id": "me-canola-oil",
@@ -503,5 +516,89 @@
         "name": "Angus Beef Eye of Round Roast",
         "store": "metro",
         "url": "https://www.metro.ca/en/online-grocery/aisles/meat-poultry/beef-veal/roasts-ribs-racks/angus-beef-eye-of-round-roast/p/222592"
+    },
+    {
+        "id": "nf-onion",
+        "name": "Onion Bag",
+        "store": "nofrills",
+        "url": "https://www.nofrills.ca/en/yellow-onions-3-lb-bag/p/20811994001_EA?cartId=8d8cb760-26e1-4b34-ad94-65662417cc9e&redirect=true&search-bar=onions&source=nspt&storeId=3787",
+        "active": true
+    },
+    {
+        "id": "nf-tortillas",
+        "name": "Tortillas",
+        "store": "nofrills",
+        "url": "https://www.nofrills.ca/en/original-tortillas/p/20182857_EA?source=nspt&search-bar=tortilla&storeId=7012&cartId=8d8cb760-26e1-4b34-ad94-65662417cc9e",
+        "active": true
+    },
+    {
+        "id": "nf-riceCooked",
+        "name": "Rice Precoocked",
+        "store": "nofrills",
+        "url": "https://www.nofrills.ca/en/premium-long-grain-rice/p/20074783001_EA?source=nspt&search-bar=rice&storeId=7012&cartId=8d8cb760-26e1-4b34-ad94-65662417cc9e",
+        "active": true
+    },
+    {
+        "id": "nf-coffee",
+        "name": "Colombian Coffee",
+        "store": "nofrills",
+        "url": "https://www.nofrills.ca/en/pc-colombian-supremo-single-origin-medium-roast-fi/p/21380579_EA?source=nspt&search-bar=coffee&storeId=7012&cartId=8d8cb760-26e1-4b34-ad94-65662417cc9e",
+        "active": true
+    },
+    {
+        "id": "fb-rice_precook",
+        "name": "Rice Precoocked",
+        "store": "foodbasics",
+        "url": "https://www.foodbasics.ca/aisles/pantry/pasta-rice-beans/rice/pre-cooked-long-grain-white-rice/p/059100008027",
+        "active": true
+    },
+    {
+        "id": "fb-onions",
+        "name": "Onion Bag",
+        "store": "foodbasics",
+        "url": "https://www.foodbasics.ca/aisles/fruits-vegetables/vegetables/onions-leeks/yellow-onions/p/059749900133",
+        "active": true
+    },
+    {
+        "id": "fb-tortillas",
+        "name": "Tortillas",
+        "store": "foodbasics",
+        "url": "https://www.foodbasics.ca/aisles/bread-bakery-products/tortillas-flat-breads/tortillas/10-flour-tortillas/p/068721038115",
+        "active": true
+    },
+    {
+        "id": "fb-coffee",
+        "name": "Colombian Coffee",
+        "store": "foodbasics",
+        "url": "https://www.foodbasics.ca/aisles/beverages/coffee/ground-coffee/colombian-ground-coffee/p/059749958042",
+        "active": true
+    },
+    {
+        "id": "me-onions",
+        "name": "Onion Bag",
+        "store": "metro",
+        "url": "https://www.metro.ca/en/online-grocery/aisles/fruits-vegetables/vegetables/onions-leeks/yellow-onions/p/059749900133",
+        "active": true
+    },
+    {
+        "id": "me-tortillas",
+        "name": "Tortillas",
+        "store": "metro",
+        "url": "https://www.metro.ca/en/online-grocery/aisles/bread-bakery-products/tortillas-flat-breads/tortillas/10-flour-tortillas/p/068721038115",
+        "active": true
+    },
+    {
+        "id": "me-riceprecook",
+        "name": "Rice Precoocked",
+        "store": "metro",
+        "url": "https://www.metro.ca/en/online-grocery/aisles/pantry/pasta-rice-beans/rice/pre-cooked-long-grain-white-rice/p/059100008027",
+        "active": true
+    },
+    {
+        "id": "me-coffee",
+        "name": "Colombian Coffee",
+        "store": "metro",
+        "url": "https://www.metro.ca/en/online-grocery/aisles/beverages/coffee/ground-coffee/colombian-ground-coffee/p/059749958042",
+        "active": true
     }
 ]

@@ -5,3 +5,5 @@ pytest
 python-dotenv
 playwright
 playwright-stealth
+fastapi
+uvicorn

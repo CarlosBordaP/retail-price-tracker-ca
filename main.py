@@ -103,7 +103,11 @@ def main():
     # Load Products
     try:
         with open(config_path, "r") as f:
-            products = json.load(f)
+            all_products = json.load(f)
+            # US01: Ignorar productos inactivos/pausados
+            products = [p for p in all_products if p.get("active", True)]
+            if len(products) < len(all_products):
+                logger.info(f"Loaded {len(products)} active products (ignored {len(all_products)-len(products)} paused).")
     except FileNotFoundError:
         logger.error("Products config file not found.")
         return

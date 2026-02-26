@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Price Tracker CA - Control Panel</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="fa-solid fa-chart-line"></i>
+                <h2>Price Tracker <span>CA</span></h2>
+            </div>
+            <nav class="nav-menu" id="navMenu">
+                <a href="#" class="nav-item active" data-view="products" id="navAllProducts">
+                    <i class="fa-solid fa-box"></i> Products
+                </a>
+                <div class="nav-submenu" id="navStoreSubmenu">
+                    <!-- Injected by JS -->
+                </div>
+                <a href="#" class="nav-item" data-view="settings" id="navSettings">
+                    <i class="fa-solid fa-gear"></i> Settings
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-title">
+                    <h1>Product Management</h1>
+                    <p>Manage retail URLs and scraping configurations</p>
+                </div>
+                <button class="btn btn-primary" id="btnAddProduct">
+                    <i class="fa-solid fa-plus"></i> Add Product
+                </button>
+            </header>
+
+            <!-- Stats/Summary Cards -->
+            <div class="stats-container" id="statsContainer">
+                <!-- Stats injected by JS -->
+            </div>
+
+            <!-- Content Area: Products -->
+            <div class="contentArea" id="productsView">
+                <div class="filters">
+                    <div class="search-box">
+                        <i class="fa-solid fa-search"></i>
+                        <input type="text" id="searchInput" placeholder="Search products...">
+                    </div>
+                </div>
+
+                <div class="tables-wrapper" id="tablesWrapper">
+                    <!-- Tables grouped by store injected by JS -->
+                </div>
+            </div>
+
+            <!-- Content Area: Settings -->
+            <div class="contentArea" id="settingsView" style="display: none;">
+                <div class="settings-card">
+                    <h3>Enabled Retailers</h3>
+                    <p class="text-secondary" style="margin-bottom: 1rem;">Toggle which retailers are active for
+                        tracking.</p>
+                    <form id="settingsForm">
+                        <div class="store-toggles" id="storeTogglesContainer">
+                            <!-- Injected by JS -->
+                        </div>
+                        <div style="margin-top: 1.5rem;">
+                            <button type="submit" class="btn btn-primary" id="btnSaveSettings">Save Settings</button>
+                        </div>
+                    </form>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Form -->
+    <div class="modal-overlay" id="productModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 id="modalTitle">Add Product</h3>
+                <button class="btn-close" id="btnCloseModal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="productForm">
+                <input type="hidden" id="formMode" value="add">
+
+                <div class="form-group">
+                    <label for="productId">Product ID</label>
+                    <input type="text" id="productId" required placeholder="e.g. nf-chicken-breast">
+                    <small>Unique identifier (Cannot edit later)</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="productName">Name</label>
+                    <input type="text" id="productName" required placeholder="Product Display Name">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="productStore">Store</label>
+                        <select id="productStore" required>
+                            <option value="nofrills">No Frills</option>
+                            <option value="foodbasics">Food Basics</option>
+                            <option value="metro">Metro</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="productPackSize">Pack Size (Optional)</label>
+                        <input type="number" step="0.01" id="productPackSize" placeholder="e.g. 5">
+                        <small>For calculating per-unit price</small>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="productUrl">Scraping URL</label>
+                    <input type="url" id="productUrl" required placeholder="https://...">
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="btnCancelModal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btnSaveProduct">Save Product</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal-container delete-container">
+            <div class="modal-header">
+                <h3>Confirm Deletion</h3>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="deleteProductName"></strong>?</p>
+                <p class="text-danger">This action cannot be undone.</p>
+                <input type="hidden" id="deleteProductId">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btnCancelDelete">Cancel</button>
+                <button class="btn btn-danger" id="btnConfirmDelete">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test Result Modal -->
+    <div class="modal-overlay" id="testModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>Test Scraper Result</h3>
+                <button class="btn-close" id="btnCloseTestModal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" id="testResultBody">
+                <div class="loading-spinner" id="testLoading" style="display: none; text-align: center; padding: 2rem;">
+                    <i class="fa-solid fa-circle-notch fa-spin fa-3x" style="color: var(--accent-primary);"></i>
+                    <p style="margin-top: 1rem;">Running scraper... this may take a moment.</p>
+                </div>
+                <pre id="testResultPre"
+                    style="background: var(--bg-primary); padding: 1rem; border-radius: 8px; overflow-x: auto; font-size: 0.9rem; border: 1px solid var(--border-color);"></pre>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btnOkTestModal">Close</button>
+            </div>
+        </div>
+    </div>
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="/static/script.js"></script>
+</body>
+
+</html>
