@@ -159,9 +159,27 @@ async def test_product(product_id: str):
          raise HTTPException(status_code=500, detail=f"Failed to parse scraper output. Output was: {process.stdout}")
 
 @app.get("/api/history")
-async def get_history():
+async def get_history(days: int = 7, active_only: bool = True):
     try:
-        data = db.get_last_7_days_history()
+        # If days is 0, fetch all time
+        fetch_days = None if days == 0 else days
+        data = db.get_history(days=fetch_days)
+        
+        if active_only:
+            # Read products.json to filter only active ones
+            active_ids = set()
+            try:
+                with open(PRODUCTS_FILE, "r") as f:
+                    products = json.load(f)
+                    for p in products:
+                        if p.get("active", True):
+                            active_ids.add(p.get("id"))
+            except Exception:
+                pass
+                
+            if active_ids:
+                data = [d for d in data if d["id"] in active_ids]
+                
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

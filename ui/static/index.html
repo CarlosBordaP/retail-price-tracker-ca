@@ -27,9 +27,17 @@
                 <div class="nav-submenu" id="navStoreSubmenu">
                     <!-- Injected by JS -->
                 </div>
-                <a href="#" class="nav-item" data-view="history" id="navHistory">
+                <a href="#" class="nav-item has-submenu" id="navHistory">
                     <i class="fa-solid fa-clock-rotate-left"></i> Historical Data
                 </a>
+                <div class="nav-submenu" id="navHistorySubmenu" style="display: none;">
+                    <a href="#" class="submenu-item nav-item active" data-view="history" data-history-type="active">
+                        <i class="fa-solid fa-bolt"></i> Active (7 Days)
+                    </a>
+                    <a href="#" class="submenu-item nav-item" data-view="history" data-history-type="all">
+                        <i class="fa-solid fa-infinity"></i> All Time
+                    </a>
+                </div>
                 <a href="#" class="nav-item" data-view="settings" id="navSettings">
                     <i class="fa-solid fa-gear"></i> Settings
                 </a>
@@ -82,9 +90,15 @@
             <!-- Content Area: History -->
             <div class="contentArea" id="historyView" style="display: none;">
                 <div class="store-section">
-                    <div class="store-header">
-                        <i class="fa-solid fa-clock-rotate-left" style="color: var(--accent-primary)"></i>
-                        7-Day Price History
+                    <div class="store-header" style="justify-content: space-between;">
+                        <div>
+                            <i class="fa-solid fa-clock-rotate-left" style="color: var(--accent-primary)"></i>
+                            <span id="historyTableTitle">7-Day Price History (Active)</span>
+                        </div>
+                        <button class="btn btn-secondary" id="btnExportCsv"
+                            style="font-size: 0.8rem; padding: 0.3rem 0.6rem;">
+                            <i class="fa-solid fa-download"></i> Export CSV
+                        </button>
                     </div>
                     <div style="overflow-x: auto;">
                         <table id="historyTable">

@@ -459,9 +459,9 @@ body {
 
 #historyTable th,
 #historyTable td {
-    padding: 1rem;
+    padding: 0.5rem 0.75rem;
     border-bottom: 1px solid var(--border-color);
-    font-size: 0.95rem;
+    font-size: 0.9rem;
 }
 
 #historyTable th {
@@ -470,6 +470,35 @@ body {
     color: var(--text-secondary);
     position: sticky;
     top: 0;
+}
+
+/* Clamp Product Name */
+.history-product-name {
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* Trend Indicators */
+.trend-icon {
+    font-size: 0.75rem;
+    margin-left: 0.35rem;
+}
+
+.trend-up {
+    color: var(--accent-warning);
+}
+
+.trend-down {
+    color: var(--accent-success);
+}
+
+.trend-flat {
+    color: var(--text-secondary);
+    opacity: 0.5;
 }
 
 #historyTable td.price-cell {

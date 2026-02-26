@@ -203,12 +203,40 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        const navHistorySubmenu = document.getElementById('navHistorySubmenu');
+        const historyTableTitle = document.getElementById('historyTableTitle');
+        const btnExportCsv = document.getElementById('btnExportCsv');
+
         navHistory.addEventListener('click', (e) => {
             e.preventDefault();
-            switchView('history');
-            updateActiveNav(navHistory);
-            fetchHistory(); // Reload history when clicked
+            const isVisible = navHistorySubmenu.style.display === 'block';
+            navHistorySubmenu.style.display = isVisible ? 'none' : 'block';
+
+            // If opening for the first time, or if we want it to act as a parent button
+            if (!isVisible && historyView.style.display !== 'block') {
+                // Click the first active sub-item automatically
+                navHistorySubmenu.querySelector('.submenu-item.active').click();
+            }
         });
+
+        // History submenus
+        navHistorySubmenu.querySelectorAll('.submenu-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                switchView('history');
+
+                // Update active state in submenus
+                navHistorySubmenu.querySelectorAll('.submenu-item').forEach(el => el.classList.remove('active'));
+                item.classList.add('active');
+                updateActiveNav(navHistory);
+
+                const type = item.getAttribute('data-history-type');
+                historyTableTitle.textContent = type === 'active' ? '7-Day Price History (Active)' : 'All Time Price History';
+                fetchHistory(type);
+            });
+        });
+
+        btnExportCsv.addEventListener('click', exportCsv);
 
         settingsForm.addEventListener('submit', saveSettings);
 
@@ -563,18 +591,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- History & Scraper Execution ---
-    async function fetchHistory() {
+    async function fetchHistory(type = 'active') {
         try {
             historyTableBody.innerHTML = '<tr><td colspan="9" style="text-align:center">Loading history...</td></tr>';
-            const res = await fetch('/api/history');
+
+            const days = type === 'all' ? 0 : 7;
+            const activeOnly = type === 'all' ? 'false' : 'true';
+
+            const res = await fetch(`/api/history?days=${days}&active_only=${activeOnly}`);
             const data = await res.json();
-            renderHistoryTable(data);
+            renderHistoryTable(data, type);
         } catch (error) {
             historyTableBody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--accent-warning);">Failed to load history data</td></tr>';
         }
     }
 
-    function renderHistoryTable(data) {
+    function renderHistoryTable(data, type) {
         // Collect all distinct dates from the dataset
         const allDatesSet = new Set();
         data.forEach(item => {
@@ -582,25 +614,39 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Sort dates chronologically
-        const dates = Array.from(allDatesSet).sort();
-        // Keep only last 7
-        const last7Dates = dates.slice(-7);
+        let dates = Array.from(allDatesSet).sort();
+
+        // If it's active type, cap at 7 just in case backend ignores it visually
+        if (type === 'active') {
+            dates = dates.slice(-7);
+        }
+
+        // Helper to format ISO date (YYYY-MM-DD) to DD/MM
+        const formatDate = (iso) => {
+            if (!iso) return '';
+            const parts = iso.split('-');
+            if (parts.length === 3) {
+                return `${parts[2]}/${parts[1]}`;
+            }
+            return iso;
+        };
 
         // Render header
         historyTableHeader.innerHTML = `
             <th>Store</th>
             <th>Product Name</th>
         `;
-        last7Dates.forEach(d => {
+        dates.forEach(d => {
             const th = document.createElement('th');
-            th.textContent = d;
+            th.textContent = formatDate(d); // Display formatted date
+            th.setAttribute('data-full-date', d); // Keep raw date for CSV
             historyTableHeader.appendChild(th);
         });
 
         // Render body
         historyTableBody.innerHTML = '';
         if (data.length === 0) {
-            historyTableBody.innerHTML = `<tr><td colspan="${last7Dates.length + 2}" style="text-align:center">No historical data available.</td></tr>`;
+            historyTableBody.innerHTML = `<tr><td colspan="${dates.length + 2}" style="text-align:center">No historical data available.</td></tr>`;
             return;
         }
 
@@ -615,25 +661,86 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Product name
             const tdName = document.createElement('td');
+            tdName.className = 'history-product-name';
             tdName.textContent = item.name;
+            tdName.title = item.name; // Full name on hover
             tr.appendChild(tdName);
 
-            // History columns
-            last7Dates.forEach(d => {
+            // History columns + Trends
+            let previousPrice = null;
+            dates.forEach((d, index) => {
                 const td = document.createElement('td');
                 const price = item.history[d];
+
                 if (price !== undefined) {
                     td.className = 'price-cell';
-                    td.textContent = `$${price.toFixed(2)}`;
+                    let trendHTML = '';
+
+                    if (previousPrice !== null) {
+                        if (price > previousPrice) {
+                            trendHTML = `<i class="fa-solid fa-arrow-up trend-icon trend-up"></i>`;
+                        } else if (price < previousPrice) {
+                            trendHTML = `<i class="fa-solid fa-arrow-down trend-icon trend-down"></i>`;
+                        } else {
+                            trendHTML = `<i class="fa-solid fa-minus trend-icon trend-flat"></i>`;
+                        }
+                    } else if (index > 0) {
+                        // Found a price but the previous registered was null.
+                        // We cannot establish a trend here cleanly since we have a gap.
+                        trendHTML = '';
+                    }
+
+                    td.innerHTML = `$${price.toFixed(2)}${trendHTML}`;
+                    previousPrice = price; // Update previous valid price
                 } else {
                     td.className = 'price-cell empty';
                     td.textContent = '-';
+                    // We don't reset previous price here, if it was 4.99 the day before, it remains the baseline for the next valid day.
                 }
                 tr.appendChild(td);
             });
 
             historyTableBody.appendChild(tr);
         });
+    }
+
+    function exportCsv() {
+        const table = document.getElementById('historyTable');
+        if (!table) return;
+
+        let csv = [];
+        const rows = table.querySelectorAll('tr');
+
+        for (let i = 0; i < rows.length; i++) {
+            let row = [], cols = rows[i].querySelectorAll('td, th');
+
+            for (let j = 0; j < cols.length; j++) {
+                // If it's a header with a full date, use that instead of the short format
+                let data = cols[j].getAttribute('data-full-date') || cols[j].innerText;
+                // Clean up any trend icons/text formats
+                data = data.replace(/[↑↓\-]/g, '').trim();
+                // Escape quotes and wrap in quotes to preserve spaces/commas safely
+                data = data.replace(/"/g, '""');
+                row.push('"' + data + '"');
+            }
+            csv.push(row.join(','));
+        }
+
+        const csvString = csv.join('\\n');
+        const defaultFilename = 'price_history_export.csv';
+
+        // Trigger Download
+        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", defaultFilename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
     }
 
     async function startScraper() {
