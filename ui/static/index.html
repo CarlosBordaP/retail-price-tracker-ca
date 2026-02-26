@@ -27,6 +27,9 @@
                 <div class="nav-submenu" id="navStoreSubmenu">
                     <!-- Injected by JS -->
                 </div>
+                <a href="#" class="nav-item" data-view="history" id="navHistory">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Historical Data
+                </a>
                 <a href="#" class="nav-item" data-view="settings" id="navSettings">
                     <i class="fa-solid fa-gear"></i> Settings
                 </a>
@@ -37,12 +40,24 @@
         <main class="main-content">
             <header class="top-header">
                 <div class="header-title">
-                    <h1>Product Management</h1>
-                    <p>Manage retail URLs and scraping configurations</p>
+                    <h1 id="mainTitle">Product Management</h1>
+                    <p id="mainDesc">Manage retail URLs and scraping configurations</p>
                 </div>
-                <button class="btn btn-primary" id="btnAddProduct">
-                    <i class="fa-solid fa-plus"></i> Add Product
-                </button>
+                <div class="header-actions">
+                    <div class="scraper-tracker" id="scraperTracker" style="display: none;">
+                        <span id="trackerMessage">Running...</span>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" id="trackerProgressFill"></div>
+                        </div>
+                        <span class="tracker-stats" id="trackerStats">0/0</span>
+                    </div>
+                    <button class="btn btn-secondary" id="btnRunScraper" style="margin-right: 0.5rem;">
+                        <i class="fa-solid fa-play"></i> Run Scraper
+                    </button>
+                    <button class="btn btn-primary" id="btnAddProduct">
+                        <i class="fa-solid fa-plus"></i> Add Product
+                    </button>
+                </div>
             </header>
 
             <!-- Stats/Summary Cards -->
@@ -61,6 +76,30 @@
 
                 <div class="tables-wrapper" id="tablesWrapper">
                     <!-- Tables grouped by store injected by JS -->
+                </div>
+            </div>
+
+            <!-- Content Area: History -->
+            <div class="contentArea" id="historyView" style="display: none;">
+                <div class="store-section">
+                    <div class="store-header">
+                        <i class="fa-solid fa-clock-rotate-left" style="color: var(--accent-primary)"></i>
+                        7-Day Price History
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table id="historyTable">
+                            <thead>
+                                <tr id="historyTableHeader">
+                                    <th>Store</th>
+                                    <th>Product</th>
+                                    <!-- Date headers injected by JS -->
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody">
+                                <!-- Data injected by JS -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 

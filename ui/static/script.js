@@ -12,11 +12,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // Views
     const productsView = document.getElementById('productsView');
     const settingsView = document.getElementById('settingsView');
+    const historyView = document.getElementById('historyView');
     const navItems = document.querySelectorAll('.nav-item');
+    const navHistory = document.getElementById('navHistory');
     const navStoreSubmenu = document.getElementById('navStoreSubmenu');
-    const headerTitle = document.querySelector('.header-title h1');
-    const headerDesc = document.querySelector('.header-title p');
+    const headerTitle = document.getElementById('mainTitle');
+    const headerDesc = document.getElementById('mainDesc');
     const btnAddProduct = document.getElementById('btnAddProduct');
+
+    // History & Tracker Elements
+    const historyTableBody = document.getElementById('historyTableBody');
+    const historyTableHeader = document.getElementById('historyTableHeader');
+    const btnRunScraper = document.getElementById('btnRunScraper');
+    const scraperTracker = document.getElementById('scraperTracker');
+    const trackerMessage = document.getElementById('trackerMessage');
+    const trackerProgressFill = document.getElementById('trackerProgressFill');
+    const trackerStats = document.getElementById('trackerStats');
+    let trackingIntervalName = null;
 
     // Forms & Inputs
     const productForm = document.getElementById('productForm');
@@ -191,13 +203,23 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        navHistory.addEventListener('click', (e) => {
+            e.preventDefault();
+            switchView('history');
+            updateActiveNav(navHistory);
+            fetchHistory(); // Reload history when clicked
+        });
+
         settingsForm.addEventListener('submit', saveSettings);
+
+        btnRunScraper.addEventListener('click', startScraper);
     }
 
     function switchView(viewName) {
         if (viewName === 'products') {
             productsView.style.display = 'block';
             settingsView.style.display = 'none';
+            historyView.style.display = 'none';
             statsContainer.style.display = 'grid';
             headerTitle.textContent = 'Product Management';
             headerDesc.textContent = 'Manage retail URLs and scraping configurations';
@@ -205,9 +227,18 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (viewName === 'settings') {
             productsView.style.display = 'none';
             settingsView.style.display = 'block';
+            historyView.style.display = 'none';
             statsContainer.style.display = 'none';
             headerTitle.textContent = 'Settings';
             headerDesc.textContent = 'Configure global tracker behaviors';
+            btnAddProduct.style.display = 'none';
+        } else if (viewName === 'history') {
+            productsView.style.display = 'none';
+            settingsView.style.display = 'none';
+            historyView.style.display = 'block';
+            statsContainer.style.display = 'none';
+            headerTitle.textContent = 'Historical Data';
+            headerDesc.textContent = 'View price trends over the last 7 recorded days';
             btnAddProduct.style.display = 'none';
         }
     }
@@ -529,5 +560,148 @@ document.addEventListener('DOMContentLoaded', () => {
             toast.style.animation = 'fadeOut 0.3s ease forwards';
             setTimeout(() => toast.remove(), 300);
         }, 3000);
+    }
+
+    // --- History & Scraper Execution ---
+    async function fetchHistory() {
+        try {
+            historyTableBody.innerHTML = '<tr><td colspan="9" style="text-align:center">Loading history...</td></tr>';
+            const res = await fetch('/api/history');
+            const data = await res.json();
+            renderHistoryTable(data);
+        } catch (error) {
+            historyTableBody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--accent-warning);">Failed to load history data</td></tr>';
+        }
+    }
+
+    function renderHistoryTable(data) {
+        // Collect all distinct dates from the dataset
+        const allDatesSet = new Set();
+        data.forEach(item => {
+            Object.keys(item.history || {}).forEach(d => allDatesSet.add(d));
+        });
+
+        // Sort dates chronologically
+        const dates = Array.from(allDatesSet).sort();
+        // Keep only last 7
+        const last7Dates = dates.slice(-7);
+
+        // Render header
+        historyTableHeader.innerHTML = `
+            <th>Store</th>
+            <th>Product Name</th>
+        `;
+        last7Dates.forEach(d => {
+            const th = document.createElement('th');
+            th.textContent = d;
+            historyTableHeader.appendChild(th);
+        });
+
+        // Render body
+        historyTableBody.innerHTML = '';
+        if (data.length === 0) {
+            historyTableBody.innerHTML = `<tr><td colspan="${last7Dates.length + 2}" style="text-align:center">No historical data available.</td></tr>`;
+            return;
+        }
+
+        data.forEach(item => {
+            const tr = document.createElement('tr');
+
+            // Store badge
+            const tdStore = document.createElement('td');
+            const storeName = storeNames[item.store] || item.store;
+            tdStore.innerHTML = `<span class="badge" style="background-color: var(--bg-hover); color: var(--brand-${item.store})"><i class="fa-solid fa-store"></i> ${storeName}</span>`;
+            tr.appendChild(tdStore);
+
+            // Product name
+            const tdName = document.createElement('td');
+            tdName.textContent = item.name;
+            tr.appendChild(tdName);
+
+            // History columns
+            last7Dates.forEach(d => {
+                const td = document.createElement('td');
+                const price = item.history[d];
+                if (price !== undefined) {
+                    td.className = 'price-cell';
+                    td.textContent = `$${price.toFixed(2)}`;
+                } else {
+                    td.className = 'price-cell empty';
+                    td.textContent = '-';
+                }
+                tr.appendChild(td);
+            });
+
+            historyTableBody.appendChild(tr);
+        });
+    }
+
+    async function startScraper() {
+        btnRunScraper.disabled = true;
+        try {
+            const res = await fetch('/api/scrape/start', { method: 'POST' });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || 'Failed to start scraper');
+            }
+            showToast('Scraper started successfully');
+
+            // Show tracker UI
+            scraperTracker.style.display = 'flex';
+            btnRunScraper.style.display = 'none';
+
+            // Begin polling status
+            if (trackingIntervalName) clearInterval(trackingIntervalName);
+            pollScraperStatus();
+            trackingIntervalName = setInterval(pollScraperStatus, 2000);
+
+        } catch (error) {
+            showToast(error.message, 'error');
+            btnRunScraper.disabled = false;
+        }
+    }
+
+    async function pollScraperStatus() {
+        try {
+            const res = await fetch('/api/scrape/status');
+            const state = await res.json();
+
+            if (state.status === 'idle' || state.status === 'error') {
+                // UI if it finished before opening or error immediately
+                if (trackingIntervalName) clearInterval(trackingIntervalName);
+                scraperTracker.style.display = 'none';
+                btnRunScraper.style.display = 'inline-flex';
+                btnRunScraper.disabled = false;
+                return;
+            }
+
+            // Update UI
+            const percentage = state.total > 0 ? (state.progress / state.total) * 100 : 0;
+            trackerProgressFill.style.width = `${percentage}%`;
+            trackerStats.textContent = `${state.progress}/${state.total}`;
+            trackerMessage.textContent = state.current_product;
+
+            if (state.status === 'running') {
+                trackerProgressFill.classList.add('running');
+            } else {
+                trackerProgressFill.classList.remove('running');
+                trackerMessage.textContent = 'Completed!';
+
+                // Allow user to close it or reset after a delay
+                if (trackingIntervalName) clearInterval(trackingIntervalName);
+                setTimeout(() => {
+                    scraperTracker.style.display = 'none';
+                    btnRunScraper.style.display = 'inline-flex';
+                    btnRunScraper.disabled = false;
+                    // Refresh history if we are on that view
+                    if (historyView.style.display === 'block') {
+                        fetchHistory();
+                    }
+                }, 3000);
+            }
+
+        } catch (error) {
+            console.error('Error polling status:', error);
+        }
     }
 });

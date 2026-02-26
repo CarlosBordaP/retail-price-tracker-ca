@@ -64,3 +64,38 @@ class DatabaseManager:
             """, (product_id,))
             row = cursor.fetchone()
             return row[0] if row else None
+
+    def get_last_7_days_history(self):
+        """Retrieves price history for the last 7 days grouped by product."""
+        with sqlite3.connect(self.db_path) as conn:
+            # Get latest distinct product name and store for each product_id
+            cursor = conn.execute("""
+                SELECT 
+                    product_id,
+                    product_name,
+                    store,
+                    price,
+                    DATE(timestamp) as date
+                FROM price_history
+                WHERE timestamp >= date('now', '-7 days')
+                ORDER BY product_id, date DESC
+            """)
+            
+            rows = cursor.fetchall()
+            
+            # Format: { "nf-chicken": { "id": "...", "name": "...", "store": "...", "history": { "2026-02-20": 4.99 } } }
+            results = {}
+            for row in rows:
+                p_id, name, store, price, date_str = row
+                if p_id not in results:
+                    results[p_id] = {
+                        "id": p_id,
+                        "name": name,
+                        "store": store,
+                        "history": {}
+                    }
+                # Keep the latest price for that day if there are multiple entries
+                if date_str not in results[p_id]["history"]:
+                    results[p_id]["history"][date_str] = price
+                    
+            return list(results.values())

@@ -9,11 +9,17 @@ import copy
 
 app = FastAPI(title="Price Tracker Control UI")
 
-# Config Paths
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PRODUCTS_FILE = os.path.join(BASE_DIR, "config", "products.json")
 SETTINGS_FILE = os.path.join(BASE_DIR, "config", "settings.json")
+STATE_FILE = os.path.join(BASE_DIR, "data", "scraper_state.json")
 STATIC_DIR = os.path.join(BASE_DIR, "ui", "static")
+
+# Add storage path to sys.path so we can import db_manager
+if BASE_DIR not in sys.path:
+    sys.path.append(BASE_DIR)
+from storage.db_manager import DatabaseManager
+db = DatabaseManager()
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -151,6 +157,62 @@ async def test_product(product_id: str):
         raise HTTPException(status_code=500, detail=f"Scraper error: {e.stderr}")
     except json.JSONDecodeError as e:
          raise HTTPException(status_code=500, detail=f"Failed to parse scraper output. Output was: {process.stdout}")
+
+@app.get("/api/history")
+async def get_history():
+    try:
+        data = db.get_last_7_days_history()
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/scrape/start")
+async def start_scraper():
+    import subprocess
+    # Check if a scrape is already running by checking the state file
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE, "r") as f:
+                state = json.load(f)
+                if state.get("status") == "running":
+                    raise HTTPException(status_code=400, detail="Scraper is already running")
+        except json.JSONDecodeError:
+            pass # File corrupted, let's start a new one
+            
+    # Initialize state file
+    with open(STATE_FILE, "w") as f:
+        json.dump({
+            "status": "running",
+            "progress": 0,
+            "total": 0,
+            "current_product": "Initializing...",
+            "completed_ids": []
+        }, f)
+        
+    main_script = os.path.join(BASE_DIR, "main.py")
+    
+    # Launch main.py with --ui-mode in the background
+    # We don't block the API, we just spin it up
+    try:
+        subprocess.Popen(
+            [sys.executable, main_script, "--ui-mode"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        return {"message": "Scraper started"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to start scraper: {str(e)}")
+
+@app.get("/api/scrape/status")
+async def get_scrape_status():
+    if not os.path.exists(STATE_FILE):
+        return {"status": "idle"}
+        
+    try:
+        with open(STATE_FILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return {"status": "error", "message": "Could not read status file"}
 
 if __name__ == "__main__":
     import uvicorn

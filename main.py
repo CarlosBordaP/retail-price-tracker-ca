@@ -86,6 +86,7 @@ def main():
     parser.add_argument("--product-id", help="Product ID for the local file")
     parser.add_argument("--import-all", action="store_true", help="Batch import all HTML files from html_imports folders")
     parser.add_argument("--url", help="Run a single product extraction by URL for debugging")
+    parser.add_argument("--ui-mode", action="store_true", help="Run in UI mode, updating scraper_state.json")
     args = parser.parse_args()
 
     db = DatabaseManager()
@@ -200,7 +201,24 @@ def main():
         # logger.info(f"Imported {len(flyer_results)} items from No Frills Flyer.")
 
         # 2. Individual Product Scan (No Frills PDP, Costco, etc.)
-        for item in products:
+        state_file = "/Users/carlosborda/Documents/Python/Learning/scraping/data/scraper_state.json"
+        completed_ids = []
+        total_products = len(products)
+        
+        for idx, item in enumerate(products):
+            if args.ui_mode:
+                try:
+                    with open(state_file, "w") as f:
+                        json.dump({
+                            "status": "running",
+                            "progress": idx,
+                            "total": total_products,
+                            "current_product": item['name'],
+                            "completed_ids": completed_ids
+                        }, f)
+                except Exception as e:
+                    logger.error(f"Failed to write state: {e}")
+                    
             scraper = scrapers.get(item['store'])
             if scraper:
                 try:
@@ -214,8 +232,23 @@ def main():
                         result = scraper.run(item['url'], browser_mgr=bm)
                     
                     process_result(item, result, db, notifier, csv_mgr)
+                    completed_ids.append(item['id'])
                 except Exception as e:
                     logger.error(f"Error processing {item['name']}: {e}")
+                    
+        # Final state update
+        if args.ui_mode:
+            try:
+                with open(state_file, "w") as f:
+                    json.dump({
+                        "status": "completed",
+                        "progress": total_products,
+                        "total": total_products,
+                        "current_product": "Done",
+                        "completed_ids": completed_ids
+                    }, f)
+            except Exception:
+                pass
 
 if __name__ == "__main__":
     main()
