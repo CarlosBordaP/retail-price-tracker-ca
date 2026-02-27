@@ -8,3 +8,4 @@ logs/*.log
 data/*.csv
 data/*.db
 data/*.sqlite
+data/*.sql.env

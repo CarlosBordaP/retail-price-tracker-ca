@@ -20,8 +20,20 @@ if BASE_DIR not in sys.path:
     sys.path.append(BASE_DIR)
 from storage.db_manager import DatabaseManager
 from storage.csv_manager import CSVManager
+from storage.supabase_manager import SupabaseManager
+import logging
+
+logger = logging.getLogger("ui_app")
+
 db = DatabaseManager()
 csv_manager = CSVManager()
+
+# Initialize Supabase manager
+try:
+    sb = SupabaseManager()
+except Exception as e:
+    logger.warning(f"Supabase init failed in UI: {e}")
+    sb = None
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -261,6 +273,14 @@ async def persist_history(data: PersistRequest):
             
         db.save_price(payload)
         csv_manager.append_price(payload)
+        
+        # Also upload to Supabase
+        if sb:
+            try:
+                sb.insert_market_price(payload)
+            except Exception as e:
+                logger.warning(f"Supabase upload failed during persist: {e}")
+        
         return {"status": "success", "message": "Price persisted to history"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

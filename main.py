@@ -9,6 +9,7 @@ from scrapers.foodbasics import FoodBasicsScraper
 from scrapers.metro import MetroScraper
 from storage.db_manager import DatabaseManager
 from storage.csv_manager import CSVManager
+from storage.supabase_manager import SupabaseManager
 from alerts.notifier import Notifier
 from utils.unit_converter import UnitConverter
 
@@ -23,7 +24,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("Orchestrator")
 
-def process_result(item, result, db, notifier, csv_mgr):
+def process_result(item, result, db, notifier, csv_mgr, sb=None):
     """Handles storage, notification, and CSV dataset for a scraper result."""
     p_id = item['id']
     name = item['name']
@@ -73,6 +74,14 @@ def process_result(item, result, db, notifier, csv_mgr):
             notifier.notify_change(name, last_price, price)
             
         logger.info(f"Success: {name} - ${price} (Unit Price: ${unit_price:.2f}/{std_unit})")
+        
+        # Upload to Supabase
+        if sb:
+            try:
+                sb.insert_market_price(data_to_store)
+            except Exception as e:
+                logger.warning(f"Supabase upload failed for {name}: {e}")
+        
         return True
     elif result and result.get('status') == 'blocked':
         logger.error(f"BLOCKED: {name} at {store} is protected by anti-bot. Please use folder import.")
@@ -92,6 +101,15 @@ def main():
     db = DatabaseManager()
     csv_mgr = CSVManager()
     notifier = Notifier(webhook_url=os.getenv("DISCORD_WEBHOOK"))
+    
+    # Initialize Supabase manager
+    try:
+        sb = SupabaseManager()
+        logger.info("Supabase connection initialized.")
+    except Exception as e:
+        logger.warning(f"Supabase init failed, running in local-only mode: {e}")
+        sb = None
+    
     scrapers = {
         "nofrills": NoFrillsScraper(),
         "foodbasics": FoodBasicsScraper(),
@@ -158,7 +176,7 @@ def main():
         product = next((p for p in products if p['id'] == args.product_id), None)
         if product:
             result = scrapers.get(product['store']).run_local(args.local_file)
-            process_result(product, result, db, notifier, csv_mgr)
+            process_result(product, result, db, notifier, csv_mgr, sb)
         return
 
     # Single URL Debug Mode
@@ -173,7 +191,7 @@ def main():
         with BrowserManager(headless=True) as bm:
             scraper = scrapers.get(product['store'])
             result = scraper.run(product['url'], browser_mgr=bm)
-            process_result(product, result, db, notifier, csv_mgr)
+            process_result(product, result, db, notifier, csv_mgr, sb)
         return
 
     # Automated Mode
@@ -231,7 +249,7 @@ def main():
                         time.sleep(45)
                         result = scraper.run(item['url'], browser_mgr=bm)
                     
-                    process_result(item, result, db, notifier, csv_mgr)
+                    process_result(item, result, db, notifier, csv_mgr, sb)
                     completed_ids.append(item['id'])
                 except Exception as e:
                     logger.error(f"Error processing {item['name']}: {e}")
