@@ -50,7 +50,7 @@ class DatabaseManager:
                 data.get("unit_price"),
                 data.get("standard_unit"),
                 data.get("url"),
-                datetime.utcnow().isoformat()
+                data.get("timestamp", datetime.now().isoformat())
             ))
             conn.commit()
 

@@ -158,7 +158,8 @@
         "id": "nf-canola-oil",
         "name": "100% Pure Canola Oil",
         "store": "nofrills",
-        "url": "https://www.nofrills.ca/en/100-pure-canola-oil/p/20028656_EA"
+        "url": "https://www.nofrills.ca/en/100-pure-canola-oil/p/20028656_EA",
+        "active": false
     },
     {
         "id": "nf-eye-round-beef",
@@ -330,7 +331,8 @@
         "id": "fb-canola-oil",
         "name": "Canola Oil",
         "store": "foodbasics",
-        "url": "https://www.foodbasics.ca/aisles/pantry/oils-vinegars/vegetable-oil/canola-oil/p/059749888769"
+        "url": "https://www.foodbasics.ca/aisles/pantry/oils-vinegars/vegetable-oil/canola-oil/p/059749888769",
+        "active": false
     },
     {
         "id": "fb-eye-round-steak",
@@ -509,7 +511,8 @@
         "id": "me-canola-oil",
         "name": "Canola Oil",
         "store": "metro",
-        "url": "https://www.metro.ca/en/online-grocery/aisles/pantry/oils-vinegars/vegetable-oil/canola-oil/p/688054000087"
+        "url": "https://www.metro.ca/en/online-grocery/aisles/pantry/oils-vinegars/vegetable-oil/canola-oil/p/688054000087",
+        "active": false
     },
     {
         "id": "me-eye-round-roast",

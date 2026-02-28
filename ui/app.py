@@ -271,6 +271,10 @@ async def persist_history(data: PersistRequest):
         if payload.get("standard_unit") is None:
             payload["standard_unit"] = payload["unit"]
             
+        # Ensure timestamp is set to local time
+        if not payload.get("timestamp"):
+            payload["timestamp"] = datetime.now().isoformat()
+            
         db.save_price(payload)
         csv_manager.append_price(payload)
         

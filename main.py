@@ -65,7 +65,8 @@ def process_result(item, result, db, notifier, csv_mgr, sb=None):
             "quantity": quantity,
             "unit_price": unit_price,
             "standard_unit": std_unit,
-            "url": url
+            "url": url,
+            "timestamp": datetime.now().isoformat()
         }
         db.save_price(data_to_store)
         csv_mgr.append_price(data_to_store)
