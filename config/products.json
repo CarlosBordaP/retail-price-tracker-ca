@@ -231,7 +231,8 @@
         "id": "fb-romaine",
         "name": "Romaine Lettuce Hearts",
         "store": "foodbasics",
-        "url": "https://www.foodbasics.ca/aisles/fruits-vegetables/packaged-salads-vegetables/romaine-lettuce-hearts/p/072668601004"
+        "url": "https://www.foodbasics.ca/aisles/fruits-vegetables/packaged-salads-vegetables/romaine-lettuce-hearts/p/072668601004",
+        "pack_size": 3.0
     },
     {
         "id": "fb-round-steak",
@@ -405,7 +406,8 @@
         "id": "me-romaine",
         "name": "Romaine Lettuce Hearts",
         "store": "metro",
-        "url": "https://www.metro.ca/en/online-grocery/aisles/fruits-vegetables/packaged-salads-vegetables/romaine-lettuce-hearts/p/072668601004"
+        "url": "https://www.metro.ca/en/online-grocery/aisles/fruits-vegetables/packaged-salads-vegetables/romaine-lettuce-hearts/p/072668601004",
+        "pack_size": 3.0
     },
     {
         "id": "me-outside-round-roast",
