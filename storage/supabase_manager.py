@@ -30,6 +30,7 @@ class SupabaseManager:
     UNIT_MAP = {
         "kg": 1,
         "l": 2,
+        "ml": 2,
         "each": 3,
         "unit": 3,
     }
@@ -161,6 +162,9 @@ class SupabaseManager:
 
         # Determine unit_id
         std_unit = data.get("standard_unit", "each")
+        if std_unit:
+            std_unit = std_unit.lower()
+            
         unit_id = alias_unit_id or self.UNIT_MAP.get(std_unit, 3)
 
         # Price
@@ -185,6 +189,26 @@ class SupabaseManager:
                 conn.commit()
                 logger.info(f"Uploaded {scraper_product_key} -> product_id={dim_product_id} @ ${price_base:.2f} for {scrape_date}")
                 return True
+
+    def get_recent_prices(self, days=7) -> list[dict]:
+        """
+        Retrieves recent prices from Supabase mapping back to source_product_key.
+        Returns a flat list of dicts: [ { "product_id": scraper_key, "date": "YYYY-MM-DD", "price": 4.99 }, ... ]
+        """
+        with self._conn() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(f"""
+                    SELECT 
+                        pa.source_product_key as product_id,
+                        f.date_id::text as date,
+                        f.price_base as price
+                    FROM capstone.fact_market_price f
+                    JOIN capstone.product_alias pa 
+                        ON f.product_id = pa.product_id AND f.source_id = pa.source_id
+                    WHERE f.date_id >= current_date - interval '{days} days'
+                    ORDER BY f.date_id DESC
+                """)
+                return cur.fetchall()
 
     # ── Alias Seeding ─────────────────────────────────────────
     def upsert_alias(self, source_id: int, product_id: int, source_product_key: str, 

@@ -5,11 +5,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Price Tracker CA - Control Panel</title>
-    <link rel="stylesheet" href="/static/styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Local CSS -->
+    <link rel="stylesheet" href="/static/styles.css?v=2">
 </head>
 
 <body>
@@ -37,6 +38,9 @@
                     <a href="#" class="submenu-item nav-item" data-view="history" data-history-type="all">
                         <i class="fa-solid fa-infinity"></i> All Time
                     </a>
+                    <a href="#" class="submenu-item nav-item" data-view="sync" id="navSync">
+                        <i class="fa-solid fa-rotate"></i> Database Sync
+                    </a>
                 </div>
                 <a href="#" class="nav-item" data-view="settings" id="navSettings">
                     <i class="fa-solid fa-gear"></i> Settings
@@ -58,6 +62,10 @@
                             <div class="progress-bar-fill" id="trackerProgressFill"></div>
                         </div>
                         <span class="tracker-stats" id="trackerStats">0/0</span>
+                        <button class="btn btn-danger" id="btnStopScraper"
+                            style="margin-left: 1rem; padding: 0.3rem 0.6rem; font-size: 0.8rem;">
+                            <i class="fa-solid fa-stop"></i> Stop
+                        </button>
                     </div>
                     <button class="btn btn-secondary" id="btnRunScraper" style="margin-right: 0.5rem;">
                         <i class="fa-solid fa-play"></i> Run Scraper
@@ -89,7 +97,14 @@
 
             <!-- Content Area: History -->
             <div class="contentArea" id="historyView" style="display: none;">
-                <div class="store-section">
+                <div class="filters" style="margin-bottom: 1rem;">
+                    <div class="search-box" style="max-width: 400px;">
+                        <i class="fa-solid fa-search"></i>
+                        <input type="text" id="historySearchInput" placeholder="Search products in history...">
+                    </div>
+                </div>
+
+                <div class="store-section" id="historyContainer">
                     <div class="store-header" style="justify-content: space-between;">
                         <div>
                             <i class="fa-solid fa-clock-rotate-left" style="color: var(--accent-primary)"></i>
@@ -117,9 +132,42 @@
                 </div>
             </div>
 
+            <!-- Content Area: Database Sync -->
+            <div class="contentArea" id="syncView" style="display: none;">
+                <div class="store-section">
+                    <div class="store-header" style="justify-content: space-between;">
+                        <div>
+                            <i class="fa-solid fa-rotate" style="color: var(--accent-primary)"></i>
+                            <span>Discrepancies (Local SQLite vs Supabase)</span>
+                        </div>
+                        <button class="btn btn-secondary" id="btnRefreshSync"
+                            style="font-size: 0.8rem; padding: 0.3rem 0.6rem;">
+                            <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                        </button>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table id="syncTable">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Store</th>
+                                    <th>Product</th>
+                                    <th>Local Price</th>
+                                    <th>Remote Price</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="syncTableBody">
+                                <!-- Data injected by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <!-- Content Area: Settings -->
             <div class="contentArea" id="settingsView" style="display: none;">
-                <div class="settings-card">
+                <div class="settings-card" style="margin-bottom: 2rem;">
                     <h3>Enabled Retailers</h3>
                     <p class="text-secondary" style="margin-bottom: 1rem;">Toggle which retailers are active for
                         tracking.</p>
@@ -133,6 +181,28 @@
                     </form>
                 </div>
 
+                <div class="settings-card">
+                    <h3>Scraper Schedule</h3>
+                    <p class="text-secondary" style="margin-bottom: 1rem;">Configure when the automated scraper runs
+                        locally (macOS launchd).</p>
+                    <form id="scheduleForm">
+                        <div class="form-row" style="display: flex; gap: 1rem;">
+                            <div class="form-group" style="flex: 1;">
+                                <label for="scheduleHour">Hour (0-23)</label>
+                                <input type="number" id="scheduleHour" min="0" max="23" required>
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label for="scheduleMinute">Minute (0-59)</label>
+                                <input type="number" id="scheduleMinute" min="0" max="59" required>
+                            </div>
+                        </div>
+                        <div style="margin-top: 1.5rem;">
+                            <button type="submit" class="btn btn-primary" id="btnSaveSchedule">Save Schedule</button>
+                            <span id="scheduleStatus"
+                                style="margin-left: 1rem; font-size: 0.9rem; color: var(--text-secondary);"></span>
+                        </div>
+                    </form>
+                </div>
             </div>
         </main>
     </div>
@@ -230,7 +300,8 @@
     </div>
     <div id="toastContainer" class="toast-container"></div>
 
-    <script src="/static/script.js"></script>
+    <!-- Main App Script -->
+    <script src="/static/script.js?v=2"></script>
 </body>
 
 </html>

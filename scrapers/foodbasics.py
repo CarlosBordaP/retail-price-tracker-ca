@@ -21,6 +21,24 @@ class FoodBasicsScraper(BaseScraper):
             # 3. Price
             price_tag = soup.select_one("span.price-update")
             price_text = price_tag.get_text(strip=True) if price_tag else ""
+            
+            # Handle multi-buy formats like "2 /"
+            if price_text and "/" in price_text and "$" not in price_text:
+                pi_prices = soup.select_one("div.pi--prices")
+                if pi_prices:
+                    full_price_text = pi_prices.get_text(separator=" ", strip=True)
+                    # Find the first price like $5.00
+                    match = re.search(r'\$\s*(\d+\.\d+)', full_price_text)
+                    if match:
+                        # Extract the quantity, e.g., "2" from "2 / $5.00"
+                        qty_match = re.search(r'(\d+)\s*/', price_text)
+                        if qty_match:
+                            qty = float(qty_match.group(1))
+                            total_price = float(match.group(1))
+                            price_text = str(round(total_price / qty, 2))
+                        else:
+                            price_text = match.group(0)
+
             price = self._clean_price(price_text)
             
             # 4. Unit Price

@@ -369,7 +369,8 @@ body {
     color: var(--text-secondary);
 }
 
-.search-box input {
+.search-box input[type="text"],
+.search-box input[type="search"] {
     width: 100%;
     padding: 0.6rem 1rem 0.6rem 2.5rem;
     background-color: var(--bg-card);

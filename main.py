@@ -225,8 +225,22 @@ def main():
         total_products = len(products)
         
         for idx, item in enumerate(products):
+            if item.get("active", True) is False:
+                logger.info(f"Skipping {item['name']}: Product is paused.")
+                continue
+
             if args.ui_mode:
                 try:
+                    with open(state_file, "r") as f:
+                        current_state = json.load(f)
+                        if current_state.get("status") == "cancelling":
+                            logger.info("Scraper cancelled via UI.")
+                            with open(state_file, "w") as out_f:
+                                current_state["status"] = "cancelled"
+                                current_state["current_product"] = "Cancelled by user"
+                                json.dump(current_state, out_f)
+                            break
+                            
                     with open(state_file, "w") as f:
                         json.dump({
                             "status": "running",
@@ -236,8 +250,13 @@ def main():
                             "completed_ids": completed_ids
                         }, f)
                 except Exception as e:
-                    logger.error(f"Failed to write state: {e}")
+                    logger.error(f"Failed to read/write state: {e}")
                     
+            if db.has_price_today(item['id']):
+                logger.info(f"Skipping {item['name']}: Price already recorded today.")
+                completed_ids.append(item['id'])
+                continue
+                
             scraper = scrapers.get(item['store'])
             if scraper:
                 try:
@@ -258,14 +277,19 @@ def main():
         # Final state update
         if args.ui_mode:
             try:
-                with open(state_file, "w") as f:
-                    json.dump({
-                        "status": "completed",
-                        "progress": total_products,
-                        "total": total_products,
-                        "current_product": "Done",
-                        "completed_ids": completed_ids
-                    }, f)
+                with open(state_file, "r") as f:
+                    final_state = json.load(f)
+                
+                # Only mark completed if it wasn't cancelled
+                if final_state.get("status") != "cancelled":
+                    with open(state_file, "w") as f:
+                        json.dump({
+                            "status": "completed",
+                            "progress": total_products,
+                            "total": total_products,
+                            "current_product": "Done",
+                            "completed_ids": completed_ids
+                        }, f)
             except Exception:
                 pass
 

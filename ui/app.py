@@ -6,10 +6,14 @@ import json
 import os
 import sys
 import copy
+import subprocess
+import plistlib
+from datetime import datetime
 
 app = FastAPI(title="Price Tracker Control UI")
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PLIST_FILE = os.path.join(BASE_DIR, "com.carlos.pricescraper.plist")
 PRODUCTS_FILE = os.path.join(BASE_DIR, "config", "products.json")
 SETTINGS_FILE = os.path.join(BASE_DIR, "config", "settings.json")
 STATE_FILE = os.path.join(BASE_DIR, "data", "scraper_state.json")
@@ -41,6 +45,15 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 # Models for Request Bodies
 class SettingsUpdate(BaseModel):
     enabled_stores: list[str]
+
+class ScheduleUpdate(BaseModel):
+    hour: int
+    minute: int
+
+class SyncResolveRequest(BaseModel):
+    product_id: str
+    date: str
+    direction: str # "push" or "pull"
 
 class Product(BaseModel):
     id: str
@@ -155,6 +168,50 @@ async def update_settings(settings: SettingsUpdate):
         json.dump(settings.model_dump(), f, indent=4)
     return settings.model_dump()
 
+@app.get("/api/schedule")
+async def get_schedule():
+    if not os.path.exists(PLIST_FILE):
+        raise HTTPException(status_code=404, detail="Plist file not found")
+    try:
+        with open(PLIST_FILE, "rb") as f:
+            plist_data = plistlib.load(f)
+            interval = plist_data.get("StartCalendarInterval", {})
+            return {"hour": interval.get("Hour", 12), "minute": interval.get("Minute", 50)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read plist: {e}")
+
+@app.put("/api/schedule")
+async def update_schedule(schedule: ScheduleUpdate):
+    if not os.path.exists(PLIST_FILE):
+        raise HTTPException(status_code=404, detail="Plist file not found")
+    try:
+        # Load
+        with open(PLIST_FILE, "rb") as f:
+            plist_data = plistlib.load(f)
+            
+        # Update
+        if "StartCalendarInterval" not in plist_data:
+            plist_data["StartCalendarInterval"] = {}
+        plist_data["StartCalendarInterval"]["Hour"] = schedule.hour
+        plist_data["StartCalendarInterval"]["Minute"] = schedule.minute
+        
+        # Save
+        with open(PLIST_FILE, "wb") as f:
+            plistlib.dump(plist_data, f)
+            
+        # Reload launchd
+        # Assuming we run this as the user, we unload and load
+        try:
+            subprocess.run(["launchctl", "unload", PLIST_FILE], check=False, capture_output=True)
+            subprocess.run(["launchctl", "load", PLIST_FILE], check=True, capture_output=True)
+        except Exception as e:
+            logger.warning(f"Could not automatically reload launchctl: {e}")
+            return {"status": "success", "message": "Schedule updated in plist, but launchctl reload failed or requires manual restart."}
+            
+        return {"status": "success", "message": "Schedule updated and applied"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update schedule: {e}")
+
 @app.post("/api/products/{product_id}/test")
 async def test_product(product_id: str):
     import subprocess
@@ -194,21 +251,20 @@ async def get_history(days: int = 7, active_only: bool = True):
         fetch_days = None if days == 0 else days
         data = db.get_history(days=fetch_days)
         
-        if active_only:
-            # Read products.json to filter only active ones
-            active_ids = set()
-            try:
-                with open(PRODUCTS_FILE, "r") as f:
-                    products = json.load(f)
-                    for p in products:
-                        if p.get("active", True):
-                            active_ids.add(p.get("id"))
-            except Exception:
-                pass
-                
-            if active_ids:
-                data = [d for d in data if d["id"] in active_ids]
-                
+        # Always filter inactive products as requested
+        active_ids = set()
+        try:
+            with open(PRODUCTS_FILE, "r") as f:
+                products = json.load(f)
+                for p in products:
+                    if p.get("active", True):
+                        active_ids.add(p.get("id"))
+        except Exception:
+            pass
+            
+        if active_ids:
+            data = [d for d in data if d["id"] in active_ids]
+            
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -250,6 +306,25 @@ async def start_scraper():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to start scraper: {str(e)}")
 
+@app.post("/api/scrape/stop")
+async def stop_scraper():
+    if not os.path.exists(STATE_FILE):
+        return {"status": "idle"}
+    try:
+        with open(STATE_FILE, "r") as f:
+            state = json.load(f)
+            
+        if state.get("status") == "running":
+            state["status"] = "cancelling"
+            state["current_product"] = "Stopping..."
+            with open(STATE_FILE, "w") as f:
+                json.dump(state, f)
+            return {"message": "Cancellation requested"}
+        else:
+            return {"message": f"Scraper is not running (status: {state.get('status')})"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error stopping scraper: {e}")
+
 @app.get("/api/scrape/status")
 async def get_scrape_status():
     if not os.path.exists(STATE_FILE):
@@ -287,7 +362,119 @@ async def persist_history(data: PersistRequest):
         
         return {"status": "success", "message": "Price persisted to history"}
     except Exception as e:
+        logger.error(f"Persistence failed for {data.product_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/sync/discrepancies")
+async def get_discrepancies(days: int = 7):
+    # Get local history
+    local_data = db.get_history(days=days)
+    
+    # Get remote history
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+    
+    remote_data = sb.get_recent_prices(days=days)
+    
+    # Map local_data into a flat format
+    local_flat = {}
+    stores = {}
+    names = {}
+    for item in local_data:
+        p_id = item["id"]
+        stores[p_id] = item["store"]
+        names[p_id] = item["name"]
+        for date_str, price in item.get("history", {}).items():
+            local_flat[(p_id, date_str)] = price
+            
+    remote_flat = {}
+    for item in remote_data:
+        p_id = item["product_id"]
+        remote_flat[(p_id, item["date"])] = item["price"]
+
+    # Compare
+    all_keys = set(local_flat.keys()).union(set(remote_flat.keys()))
+    discrepancies = []
+    
+    products = load_products()
+    product_map = {p["id"]: p for p in products}
+
+    for p_id, date_str in all_keys:
+        product_info = product_map.get(p_id, {})
+        # Skip paused products
+        if product_info.get("active", True) is False:
+            continue
+            
+        local_price = local_flat.get((p_id, date_str))
+        remote_price = remote_flat.get((p_id, date_str))
+        
+        # Only add if one is missing or absolute difference > 0.01
+        if local_price is None or remote_price is None or abs(local_price - float(remote_price)) > 0.01:
+            discrepancies.append({
+                "product_id": p_id,
+                "product_name": names.get(p_id) or product_info.get("name", "Unknown"),
+                "store": stores.get(p_id) or product_info.get("store", "Unknown"),
+                "date": date_str,
+                "local_price": local_price,
+                "remote_price": float(remote_price) if remote_price else None
+            })
+            
+    return sorted(discrepancies, key=lambda x: (x["date"], x["product_id"]), reverse=True)
+
+@app.post("/api/sync/resolve")
+async def resolve_sync(req: SyncResolveRequest):
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+        
+    if req.direction == "push":
+        # Push to Supabase from local
+        data = db.get_price_record(req.product_id, req.date)
+        if not data:
+            raise HTTPException(status_code=404, detail="Local record not found")
+        
+        # Ensure timestamp is string
+        if isinstance(data.get("timestamp"), str) == False:
+            data["timestamp"] = str(data["timestamp"])
+            
+        try:
+            success = sb.insert_market_price(data)
+            if not success:
+                raise HTTPException(status_code=400, detail="Supabase rejected the data. The product likely lacks an alias mapping in Supabase (dim_product/product_alias).")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+            
+        return {"status": "success", "message": "Pushed to remote"}
+            
+    elif req.direction == "pull":
+        products = load_products()
+        p = next((x for x in products if x["id"] == req.product_id), None)
+        if not p:
+            raise HTTPException(status_code=404, detail="Product not found in config")
+            
+        # Get remote price directly from the discrepancies logic
+        remote_data = sb.get_recent_prices(days=30)
+        remote_item = next((x for x in remote_data if x["product_id"] == req.product_id and x["date"] == req.date), None)
+        if not remote_item:
+            raise HTTPException(status_code=404, detail="Remote record not found")
+            
+        data = {
+            "product_id": req.product_id,
+            "store": p["store"],
+            "product_name": p["name"],
+            "price": float(remote_item["price"]),
+            "currency": "$",
+            "stock": "unknown",
+            "unit": "each",
+            "quantity": 1.0,
+            "unit_price": float(remote_item["price"]),
+            "standard_unit": "each",
+            "url": p["url"],
+            "timestamp": f"{req.date}T12:00:00"
+        }
+        db.save_price(data)
+        return {"status": "success", "message": "Pulled to local"}
+    else:
+        raise HTTPException(status_code=400, detail="Invalid direction")
 
 if __name__ == "__main__":
     import uvicorn
