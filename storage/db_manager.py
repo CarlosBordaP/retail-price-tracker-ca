@@ -54,6 +54,18 @@ class DatabaseManager:
             ))
             conn.commit()
 
+    def get_price_record(self, product_id: str, date_str: str) -> dict:
+        """Retrieves a full price record for a specific date."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute("""
+                SELECT * FROM price_history 
+                WHERE product_id = ? AND date(timestamp) = ? 
+                ORDER BY timestamp DESC LIMIT 1
+            """, (product_id, date_str))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
     def get_last_price(self, product_id: str):
         """Retrieves the most recent price for a product to detect changes."""
         with sqlite3.connect(self.db_path) as conn:
@@ -64,6 +76,16 @@ class DatabaseManager:
             """, (product_id,))
             row = cursor.fetchone()
             return row[0] if row else None
+
+    def has_price_today(self, product_id: str) -> bool:
+        """Checks if a price was already recorded for this product today."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("""
+                SELECT 1 FROM price_history 
+                WHERE product_id = ? AND date(timestamp) = date('now', 'localtime')
+                LIMIT 1
+            """, (product_id,))
+            return cursor.fetchone() is not None
 
     def get_history(self, days=7):
         """Retrieves price history grouped by product. If days=None, returns all history."""

@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const productsView = document.getElementById('productsView');
     const settingsView = document.getElementById('settingsView');
     const historyView = document.getElementById('historyView');
+    const syncView = document.getElementById('syncView');
     const navItems = document.querySelectorAll('.nav-item');
     const navHistory = document.getElementById('navHistory');
     const navStoreSubmenu = document.getElementById('navStoreSubmenu');
@@ -24,7 +25,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // History & Tracker Elements
     const historyTableBody = document.getElementById('historyTableBody');
     const historyTableHeader = document.getElementById('historyTableHeader');
+    const syncTableBody = document.getElementById('syncTableBody');
+    const btnRefreshSync = document.getElementById('btnRefreshSync');
+
     const btnRunScraper = document.getElementById('btnRunScraper');
+    const btnStopScraper = document.getElementById('btnStopScraper');
     const scraperTracker = document.getElementById('scraperTracker');
     const trackerMessage = document.getElementById('trackerMessage');
     const trackerProgressFill = document.getElementById('trackerProgressFill');
@@ -53,6 +58,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Settings elements
     const storeTogglesContainer = document.getElementById('storeTogglesContainer');
     const settingsForm = document.getElementById('settingsForm');
+    const scheduleForm = document.getElementById('scheduleForm');
+    const scheduleHour = document.getElementById('scheduleHour');
+    const scheduleMinute = document.getElementById('scheduleMinute');
+    const scheduleStatus = document.getElementById('scheduleStatus');
+    const historySearchInput = document.getElementById('historySearchInput');
 
     const storeNames = {
         'nofrills': 'No Frills',
@@ -65,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function init() {
         await fetchSettings();
+        await fetchSchedule();
         await fetchProducts();
         setupNavigation();
     }
@@ -185,6 +196,46 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function fetchSchedule() {
+        try {
+            const res = await fetch('/api/schedule');
+            if (res.ok) {
+                const data = await res.json();
+                scheduleHour.value = data.hour;
+                scheduleMinute.value = data.minute;
+            }
+        } catch (error) {
+            console.error('Failed to load schedule', error);
+        }
+    }
+
+    async function saveSchedule(e) {
+        e.preventDefault();
+        scheduleStatus.textContent = "Saving...";
+        scheduleStatus.style.color = "var(--text-secondary)";
+        try {
+            const res = await fetch('/api/schedule', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    hour: parseInt(scheduleHour.value),
+                    minute: parseInt(scheduleMinute.value)
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Failed to save schedule');
+
+            scheduleStatus.textContent = "Saved & Applied";
+            scheduleStatus.style.color = "var(--accent-primary)";
+            setTimeout(() => { scheduleStatus.textContent = ""; }, 3000);
+            showToast('Schedule updated');
+        } catch (error) {
+            scheduleStatus.textContent = "Error";
+            scheduleStatus.style.color = "var(--accent-warning)";
+            showToast(error.message, 'error');
+        }
+    }
+
     // --- View Navigation ---
     function setupNavigation() {
         navItems.forEach(item => {
@@ -225,24 +276,34 @@ document.addEventListener('DOMContentLoaded', () => {
         navHistorySubmenu.querySelectorAll('.submenu-item').forEach(item => {
             item.addEventListener('click', (e) => {
                 e.preventDefault();
-                switchView('history');
 
                 // Update active state in submenus
                 navHistorySubmenu.querySelectorAll('.submenu-item').forEach(el => el.classList.remove('active'));
                 item.classList.add('active');
                 updateActiveNav(navHistory);
 
-                const type = item.getAttribute('data-history-type');
-                historyTableTitle.textContent = type === 'active' ? '7-Day Price History (Active)' : 'All Time Price History';
-                fetchHistory(type);
+                const view = item.getAttribute('data-view');
+                if (view === 'sync') {
+                    switchView('sync');
+                    fetchSyncDiscrepancies();
+                } else {
+                    switchView('history');
+                    const type = item.getAttribute('data-history-type');
+                    historyTableTitle.textContent = type === 'active' ? '7-Day Price History (Active)' : 'All Time Price History';
+                    fetchHistory(type);
+                }
             });
         });
 
         btnExportCsv.addEventListener('click', exportCsv);
 
         settingsForm.addEventListener('submit', saveSettings);
+        scheduleForm.addEventListener('submit', saveSchedule);
 
         btnRunScraper.addEventListener('click', startScraper);
+        btnStopScraper.addEventListener('click', stopScraper);
+
+        btnRefreshSync.addEventListener('click', fetchSyncDiscrepancies);
     }
 
     function switchView(viewName) {
@@ -250,6 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
             productsView.style.display = 'block';
             settingsView.style.display = 'none';
             historyView.style.display = 'none';
+            syncView.style.display = 'none';
             statsContainer.style.display = 'grid';
             headerTitle.textContent = 'Product Management';
             headerDesc.textContent = 'Manage retail URLs and scraping configurations';
@@ -258,6 +320,7 @@ document.addEventListener('DOMContentLoaded', () => {
             productsView.style.display = 'none';
             settingsView.style.display = 'block';
             historyView.style.display = 'none';
+            syncView.style.display = 'none';
             statsContainer.style.display = 'none';
             headerTitle.textContent = 'Settings';
             headerDesc.textContent = 'Configure global tracker behaviors';
@@ -266,9 +329,19 @@ document.addEventListener('DOMContentLoaded', () => {
             productsView.style.display = 'none';
             settingsView.style.display = 'none';
             historyView.style.display = 'block';
+            syncView.style.display = 'none';
             statsContainer.style.display = 'none';
             headerTitle.textContent = 'Historical Data';
             headerDesc.textContent = 'View price trends over the last 7 recorded days';
+            btnAddProduct.style.display = 'none';
+        } else if (viewName === 'sync') {
+            productsView.style.display = 'none';
+            settingsView.style.display = 'none';
+            historyView.style.display = 'none';
+            syncView.style.display = 'block';
+            statsContainer.style.display = 'none';
+            headerTitle.textContent = 'Database Synchronization';
+            headerDesc.textContent = 'Compare and resolve anomalies between Local SQLite and Supabase';
             btnAddProduct.style.display = 'none';
         }
     }
@@ -474,6 +547,24 @@ document.addEventListener('DOMContentLoaded', () => {
         renderDashboard(filtered);
     });
 
+    // --- History Search Logic ---
+    let lastHistoryData = [];
+    let lastHistoryType = 'active';
+
+    historySearchInput.addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase();
+        if (!term) {
+            renderHistoryTable(lastHistoryData, lastHistoryType);
+            return;
+        }
+
+        const filtered = lastHistoryData.filter(p =>
+            p.name.toLowerCase().includes(term) ||
+            p.id.toLowerCase().includes(term)
+        );
+        renderHistoryTable(filtered, lastHistoryType);
+    });
+
     // --- Modal Logic ---
     function openModal(modal) {
         modal.classList.add('active');
@@ -653,7 +744,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const res = await fetch(`/api/history?days=${days}&active_only=${activeOnly}`);
             const data = await res.json();
-            renderHistoryTable(data, type);
+            lastHistoryData = data;
+            lastHistoryType = type;
+
+            // Re-apply filter if present
+            const term = historySearchInput.value.toLowerCase();
+            const filteredData = term ? data.filter(p => p.name.toLowerCase().includes(term) || p.id.toLowerCase().includes(term)) : data;
+
+            renderHistoryTable(filteredData, type);
         } catch (error) {
             historyTableBody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--accent-warning);">Failed to load history data</td></tr>';
         }
@@ -703,59 +801,81 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        data.forEach(item => {
-            const tr = document.createElement('tr');
+        // Group by store
+        const groupedData = data.reduce((acc, p) => {
+            if (!acc[p.store]) acc[p.store] = [];
+            acc[p.store].push(p);
+            return acc;
+        }, {});
 
-            // Store badge
-            const tdStore = document.createElement('td');
-            const storeName = storeNames[item.store] || item.store;
-            tdStore.innerHTML = `<span class="badge" style="background-color: var(--bg-hover); color: var(--brand-${item.store})"><i class="fa-solid fa-store"></i> ${storeName}</span>`;
-            tr.appendChild(tdStore);
+        for (const [storeId, storeItems] of Object.entries(groupedData)) {
+            // Create a group header row
+            const storeName = storeNames[storeId] || storeId;
+            const groupHeaderTr = document.createElement('tr');
+            groupHeaderTr.className = 'history-group-header';
+            groupHeaderTr.style.backgroundColor = 'var(--bg-hover)';
+            groupHeaderTr.innerHTML = `
+                <td colspan="${dates.length + 2}" style="font-weight: 600; color: var(--brand-${storeId}); padding: 0.8rem 1rem;">
+                    <i class="fa-solid fa-store"></i> ${storeName} (${storeItems.length} items)
+                </td>
+            `;
+            historyTableBody.appendChild(groupHeaderTr);
 
-            // Product name
-            const tdName = document.createElement('td');
-            tdName.className = 'history-product-name';
-            tdName.textContent = item.name;
-            tdName.title = item.name; // Full name on hover
-            tr.appendChild(tdName);
+            storeItems.forEach(item => {
+                const tr = document.createElement('tr');
 
-            // History columns + Trends
-            let previousPrice = null;
-            dates.forEach((d, index) => {
-                const td = document.createElement('td');
-                const price = item.history[d];
+                // Store badge (Simplified since we are in a group)
+                const tdStore = document.createElement('td');
+                tdStore.style.color = 'var(--text-secondary)';
+                tdStore.style.fontSize = '0.8rem';
+                tdStore.textContent = item.id;
+                tr.appendChild(tdStore);
 
-                if (price !== undefined) {
-                    td.className = 'price-cell';
-                    let trendHTML = '';
+                // Product name
+                const tdName = document.createElement('td');
+                tdName.className = 'history-product-name';
+                tdName.textContent = item.name;
+                tdName.title = item.name; // Full name on hover
+                tr.appendChild(tdName);
 
-                    if (previousPrice !== null) {
-                        if (price > previousPrice) {
-                            trendHTML = `<i class="fa-solid fa-arrow-up trend-icon trend-up"></i>`;
-                        } else if (price < previousPrice) {
-                            trendHTML = `<i class="fa-solid fa-arrow-down trend-icon trend-down"></i>`;
-                        } else {
-                            trendHTML = `<i class="fa-solid fa-minus trend-icon trend-flat"></i>`;
+                // History columns + Trends
+                let previousPrice = null;
+                dates.forEach((d, index) => {
+                    const td = document.createElement('td');
+                    const price = item.history[d];
+
+                    if (price !== undefined) {
+                        td.className = 'price-cell';
+                        let trendHTML = '';
+
+                        if (previousPrice !== null) {
+                            if (price > previousPrice) {
+                                trendHTML = `<i class="fa-solid fa-arrow-up trend-icon trend-up"></i>`;
+                            } else if (price < previousPrice) {
+                                trendHTML = `<i class="fa-solid fa-arrow-down trend-icon trend-down"></i>`;
+                            } else {
+                                trendHTML = `<i class="fa-solid fa-minus trend-icon trend-flat"></i>`;
+                            }
+                        } else if (index > 0) {
+                            // Found a price but the previous registered was null.
+                            // We cannot establish a trend here cleanly since we have a gap.
+                            trendHTML = '';
                         }
-                    } else if (index > 0) {
-                        // Found a price but the previous registered was null.
-                        // We cannot establish a trend here cleanly since we have a gap.
-                        trendHTML = '';
+
+                        const unitSuffix = item.unit && item.unit !== 'each' ? `/${item.unit}` : '';
+                        td.innerHTML = `$${price.toFixed(2)}${unitSuffix}${trendHTML}`;
+                        previousPrice = price; // Update previous valid price
+                    } else {
+                        td.className = 'price-cell empty';
+                        td.textContent = '-';
+                        // We don't reset previous price here, if it was 4.99 the day before, it remains the baseline for the next valid day.
                     }
+                    tr.appendChild(td);
+                });
 
-                    const unitSuffix = item.unit && item.unit !== 'each' ? `/${item.unit}` : '';
-                    td.innerHTML = `$${price.toFixed(2)}${unitSuffix}${trendHTML}`;
-                    previousPrice = price; // Update previous valid price
-                } else {
-                    td.className = 'price-cell empty';
-                    td.textContent = '-';
-                    // We don't reset previous price here, if it was 4.99 the day before, it remains the baseline for the next valid day.
-                }
-                tr.appendChild(td);
+                historyTableBody.appendChild(tr);
             });
-
-            historyTableBody.appendChild(tr);
-        });
+        }
     }
 
     function exportCsv() {
@@ -822,6 +942,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function stopScraper() {
+        btnStopScraper.disabled = true;
+        try {
+            const res = await fetch('/api/scrape/stop', { method: 'POST' });
+            if (!res.ok) throw new Error('Failed to stop scraper');
+            trackerMessage.textContent = 'Cancelling...';
+        } catch (error) {
+            showToast(error.message, 'error');
+        } finally {
+            btnStopScraper.disabled = false;
+        }
+    }
+
     async function pollScraperStatus() {
         try {
             const res = await fetch('/api/scrape/status');
@@ -865,4 +998,66 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error polling status:', error);
         }
     }
+
+    // --- DB Sync ---
+    async function fetchSyncDiscrepancies() {
+        try {
+            syncTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center">Loading discrepancies (checking last 7 days)...</td></tr>';
+            const res = await fetch('/api/sync/discrepancies?days=7');
+            const data = await res.json();
+
+            syncTableBody.innerHTML = '';
+            if (data.length === 0) {
+                syncTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--accent-success);">No anomalies found! Databases are in sync.</td></tr>';
+                return;
+            }
+
+            data.forEach(item => {
+                const tr = document.createElement('tr');
+
+                const localPriceText = item.local_price !== null ? `$${item.local_price.toFixed(2)}` : '<span style="color:var(--text-secondary)">Missing</span>';
+                const remotePriceText = item.remote_price !== null ? `$${item.remote_price.toFixed(2)}` : '<span style="color:var(--text-secondary)">Missing</span>';
+
+                tr.innerHTML = `
+                <td>${item.date}</td>
+                <td><span class="badge" style="color: var(--brand-${item.store})">${storeNames[item.store] || item.store}</span></td>
+                <td>${item.product_name} <br> <small style="color:var(--text-secondary)">${item.product_id}</small></td>
+                <td><strong>${localPriceText}</strong></td>
+                <td><strong>${remotePriceText}</strong></td>
+                <td>
+                    <div style="display:flex; gap:0.5rem;">
+                        <button class="btn btn-primary" style="padding:0.25rem 0.5rem; font-size:0.8rem;" onclick="window.resolveSync('${item.product_id}', '${item.date}', 'push')" ${item.local_price === null ? 'disabled' : ''} title="Push local record to Supabase">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> Push Local
+                        </button>
+                        <button class="btn btn-secondary" style="padding:0.25rem 0.5rem; font-size:0.8rem;" onclick="window.resolveSync('${item.product_id}', '${item.date}', 'pull')" ${item.remote_price === null ? 'disabled' : ''} title="Pull Supabase record to Local SQLite">
+                            <i class="fa-solid fa-cloud-arrow-down"></i> Pull Remote
+                        </button>
+                    </div>
+                </td>
+            `;
+                syncTableBody.appendChild(tr);
+            });
+        } catch (error) {
+            syncTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--accent-warning);">Failed to load discrepancies. Is Supabase configured?</td></tr>';
+        }
+    }
+
+    window.resolveSync = async (productId, date, direction) => {
+        try {
+            const res = await fetch('/api/sync/resolve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_id: productId, date: date, direction: direction })
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Failed to sync');
+
+            showToast(`Sync successful: ${data.message}`);
+            fetchSyncDiscrepancies(); // refresh list
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    };
+
 });
